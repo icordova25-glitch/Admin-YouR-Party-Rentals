@@ -10,12 +10,14 @@ UPLOADS_DIR = Path(os.getenv("UPLOADS_DIR", str(DATA_DIR / "uploads" / "gallery"
 AUTH_PATH = DATA_DIR / "admin-auth.json"
 CATALOG_PATH = DATA_DIR / "catalog.json"
 GALLERY_PATH = DATA_DIR / "gallery.json"
+GALLERY_SEEDED_PATH = DATA_DIR / ".gallery-seeded"
 SETTINGS_PATH = DATA_DIR / "business-settings.json"
 AVAILABILITY_PATH = DATA_DIR / "dropoff-availability.json"
 BOOKINGS_PATH = DATA_DIR / "bookings.json"
 USERNAME = os.getenv("GALLERY_ADMIN_USERNAME", "admin")
 PASSWORD = os.getenv("GALLERY_ADMIN_PASSWORD", "yourr-admin")
 CORS_ORIGIN = os.getenv("CORS_ALLOWED_ORIGIN", "*")
+DEFAULT_GALLERY = [{"id": "default-elegant-table", "url": "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=1200&q=80", "caption": "Elegant table layout"}, {"id": "default-guest-seating", "url": "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?auto=format&fit=crop&w=1200&q=80", "caption": "Guest seating ready"}, {"id": "default-canopy", "url": "https://images.unsplash.com/photo-1527529482837-4698179dc6ce?auto=format&fit=crop&w=1200&q=80", "caption": "Canopy coverage"}, {"id": "default-ice-chest", "url": "https://images.unsplash.com/photo-1523875194681-bedd468c58bf?auto=format&fit=crop&w=1200&q=80", "caption": "Ice chest beverage station"}]
 DEFAULT = {"items": [{"key": "tables", "name": "Tables", "description": "Rectangular and round event tables for dining and display.", "price": 10, "inventory": 100}, {"key": "chairs", "name": "Chairs", "description": "Comfortable, stackable seating for indoor and outdoor events.", "price": 2, "inventory": 250}, {"key": "canopies", "name": "Canopies", "description": "Shade coverage for backyard celebrations and open spaces.", "price": 75, "inventory": 20}, {"key": "fans", "name": "Fans", "description": "Portable cooling fans to keep guests comfortable all day.", "price": 20, "inventory": 30}, {"key": "iceChests", "name": "Ice Chests", "description": "Large-capacity coolers for drinks, food storage, and service.", "price": 15, "inventory": 40}], "packages": [{"id": "summer-special", "name": "Summer Special", "description": "4 Tables, 24 Chairs, one 10x20 Canopy, plus your choice of one add-on: Ice Chest, Fan, or Speaker.", "price": 169, "items": {"tables": 4, "chairs": 24, "canopies": 1, "fans": 0, "iceChests": 1}}]}
 STATIC = {"/": "index.html", "/index.html": "index.html", "/script.js": "script.js", "/styles.css": "styles.css", "/config.js": "config.js", "/admin-gallery.html": "admin-gallery.html", "/admin-gallery.js": "admin-gallery.js"}
 
@@ -30,6 +32,8 @@ def init():
     DATA_DIR.mkdir(exist_ok=True); UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
     for path, value in ((AUTH_PATH, {"username": USERNAME, "password": PASSWORD}), (CATALOG_PATH, DEFAULT), (GALLERY_PATH, []), (SETTINGS_PATH, {}), (AVAILABILITY_PATH, {}), (BOOKINGS_PATH, [])):
         if not path.exists(): write(path, value)
+    if not GALLERY_SEEDED_PATH.exists() and read(GALLERY_PATH, []) == []:
+        write(GALLERY_PATH, DEFAULT_GALLERY); GALLERY_SEEDED_PATH.touch()
 
 def authorized(value):
     if not value or not value.startswith("Basic "): return False
