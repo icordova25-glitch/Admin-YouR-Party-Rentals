@@ -67,7 +67,15 @@ DEFAULT_CATALOG = {
         {"key": "fans", "name": "Fans", "description": "Portable cooling fans to keep guests comfortable all day.", "price": 20, "inventory": 30},
         {"key": "iceChests", "name": "Ice Chests", "description": "Large-capacity coolers for drinks, food storage, and service.", "price": 15, "inventory": 40},
     ],
-    "packages": [],
+    "packages": [
+        {
+            "id": "summer-special",
+            "name": "Summer Special",
+            "description": "4 Tables, 24 Chairs, one 10x20 Canopy, plus your choice of one add-on: Ice Chest, Fan, or Speaker. Note your add-on choice in the booking notes (Speaker is not stocked in inventory and will be confirmed by our team).",
+            "price": 169,
+            "items": {"tables": 4, "chairs": 24, "canopies": 1, "fans": 0, "iceChests": 1},
+        }
+    ],
 }
 
 
