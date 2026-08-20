@@ -3,7 +3,7 @@ services:
     name: your-party-rentals-api
     runtime: python
     plan: free
-    buildCommand: ""
+    buildCommand: python3 -m py_compile server.py
     startCommand: python3 server.py
     healthCheckPath: /api/health
     envVars:
