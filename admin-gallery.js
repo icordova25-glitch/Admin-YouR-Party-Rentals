@@ -1,4 +1,5 @@
 const AUTH_KEY = "yourr_party_rentals_gallery_admin_auth";
+
 const loginSection = document.getElementById("admin-login");
 const panelSection = document.getElementById("admin-panel");
 const loginForm = document.getElementById("admin-login-form");
@@ -21,30 +22,476 @@ const inventoryEditor = document.getElementById("inventory-editor");
 const packageEditor = document.getElementById("package-editor");
 const addPackageBtn = document.getElementById("add-package-btn");
 const catalogStatus = document.getElementById("catalog-status");
+const authForm = document.getElementById("auth-form");
+const authStatus = document.getElementById("auth-status");
+const bookingsList = document.getElementById("bookings-list");
+const refreshBookingsBtn = document.getElementById("refresh-bookings-btn");
+
 let availabilityOverrides = {};
-const keys = ["tables", "chairs", "canopies", "fans", "iceChests"];
-function getCredentials() { try { const value = JSON.parse(sessionStorage.getItem(AUTH_KEY) || "null"); return value && value.username && value.password ? value : null; } catch (error) { return null; } }
-function authHeader() { const credentials = getCredentials(); return credentials ? { Authorization: `Basic ${btoa(`${credentials.username}:${credentials.password}`)}` } : {}; }
-function fileToDataUrl(file) { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file); }); }
-async function verifyCredentials(username, password) { const response = await fetch("/api/admin/ping", { headers: { Authorization: `Basic ${btoa(`${username}:${password}`)}` } }); return response.ok; }
-function showPanel() { loginSection.hidden = true; panelSection.hidden = false; loadAdminGallery(); loadSettings(); loadAvailability(); loadCatalog(); }
-function showLogin() { loginSection.hidden = false; panelSection.hidden = true; }
-async function loadAdminGallery() { const response = await fetch("/api/gallery"); renderAdminGallery(response.ok ? await response.json() : []); }
-function renderAdminGallery(images) { adminGalleryGrid.innerHTML = images.length ? "" : "<p>No uploaded images yet. Add one above.</p>"; images.forEach((image) => { const figure = document.createElement("figure"); const img = document.createElement("img"); img.src = image.url; img.alt = image.caption || "Uploaded gallery image"; img.onclick = () => openPreview(image); figure.appendChild(img); const caption = document.createElement("figcaption"); caption.textContent = image.caption || "(no caption)"; figure.appendChild(caption); const deleteButton = document.createElement("button"); deleteButton.type = "button"; deleteButton.textContent = "Delete"; deleteButton.onclick = () => deleteImage(image.id); figure.appendChild(deleteButton); const previewButton = document.createElement("button"); previewButton.type = "button"; previewButton.className = "preview-btn"; previewButton.textContent = "Preview"; previewButton.onclick = () => openPreview(image); figure.appendChild(previewButton); adminGalleryGrid.appendChild(figure); }); }
-function openPreview(image) { previewImage.src = image.url; previewImage.alt = image.caption || "Uploaded gallery image"; previewTitle.textContent = image.caption || "Image Preview"; previewCaption.textContent = image.caption || ""; previewModal.hidden = false; }
-function closePreview() { previewModal.hidden = true; previewImage.src = ""; }
-async function loadSettings() { const response = await fetch("/api/admin/settings", { headers: authHeader() }); if (response.ok) Object.entries(await response.json()).forEach(([key, value]) => { if (settingsForm.elements[key]) settingsForm.elements[key].value = value; }); }
-async function loadAvailability() { const response = await fetch("/api/admin/availability", { headers: authHeader() }); if (response.ok) availabilityOverrides = await response.json(); }
-async function loadCatalog() { const response = await fetch("/api/admin/catalog", { headers: authHeader() }); if (response.ok) renderCatalogEditor(await response.json()); }
-function renderCatalogEditor(catalog) { inventoryEditor.innerHTML = ""; catalog.items.forEach((item) => { const row = document.createElement("div"); row.className = "inventory-row"; row.dataset.key = item.key; row.innerHTML = `<strong>${item.name}</strong><label class="inventory-description-field">Description<input name="description" required></label><label>Inventory<input type="number" min="0" name="inventory" required></label><label>Price<input type="number" min="0" step=".01" name="price" required></label>`; row.querySelector('[name="description"]').value = item.description || ""; row.querySelector('[name="inventory"]').value = item.inventory; row.querySelector('[name="price"]').value = item.price; inventoryEditor.appendChild(row); }); packageEditor.innerHTML = ""; catalog.packages.forEach(addPackageEditor); }
-function addPackageEditor(pkg = {}) { if (packageEditor.children.length >= 4) { catalogStatus.textContent = "A maximum of four packages can be displayed."; return; } const editor = document.createElement("fieldset"); editor.className = "package-editor-row"; editor.dataset.id = pkg.id || ""; editor.innerHTML = `<legend>Package ${packageEditor.children.length + 1}</legend><button type="button" class="remove-package-btn">Remove</button><label>Name<input name="packageName" required></label><label>Description<input name="packageDescription"></label><label>Package Price<input type="number" min="0" step=".01" name="packagePrice" required></label><div class="package-quantities"></div>`; editor.querySelector('[name="packageName"]').value = pkg.name || ""; editor.querySelector('[name="packageDescription"]').value = pkg.description || ""; editor.querySelector('[name="packagePrice"]').value = pkg.price || 0; keys.forEach((key) => { const label = document.createElement("label"); label.textContent = key; const input = document.createElement("input"); input.type = "number"; input.min = "0"; input.name = `package-${key}`; input.value = pkg.items?.[key] || 0; label.appendChild(input); editor.querySelector(".package-quantities").appendChild(label); }); editor.querySelector(".remove-package-btn").onclick = () => editor.remove(); packageEditor.appendChild(editor); }
-loginForm.addEventListener("submit", async (event) => { event.preventDefault(); const data = new FormData(loginForm); const username = String(data.get("username") || "").trim(); const password = String(data.get("password") || ""); loginStatus.textContent = "Checking credentials..."; if (await verifyCredentials(username, password)) { sessionStorage.setItem(AUTH_KEY, JSON.stringify({ username, password })); loginForm.reset(); showPanel(); } else loginStatus.textContent = "Incorrect username or password."; });
-logoutBtn.onclick = () => { sessionStorage.removeItem(AUTH_KEY); showLogin(); };
-uploadForm.addEventListener("submit", async (event) => { event.preventDefault(); const data = new FormData(uploadForm); const file = data.get("image"); if (!file || !file.size) { uploadStatus.textContent = "Please choose an image file."; return; } uploadStatus.textContent = "Uploading..."; const response = await fetch("/api/gallery", { method: "POST", headers: { "Content-Type": "application/json", ...authHeader() }, body: JSON.stringify({ image: await fileToDataUrl(file), caption: String(data.get("caption") || "").trim() }) }); uploadStatus.textContent = response.ok ? "Image added to gallery." : "Upload failed."; if (response.ok) { uploadForm.reset(); loadAdminGallery(); } });
-settingsForm.addEventListener("submit", async (event) => { event.preventDefault(); const response = await fetch("/api/admin/settings", { method: "PUT", headers: { "Content-Type": "application/json", ...authHeader() }, body: JSON.stringify(Object.fromEntries(new FormData(settingsForm).entries())) }); settingsStatus.textContent = response.ok ? "Business settings saved." : "Could not save business settings."; });
-availabilityForm.elements.availabilityDate.onchange = (event) => { availabilityForm.elements.availabilitySlots.value = (availabilityOverrides[event.target.value] || []).join(", "); };
-availabilityForm.addEventListener("submit", async (event) => { event.preventDefault(); const data = new FormData(availabilityForm); const date = String(data.get("availabilityDate") || ""); const slots = String(data.get("availabilitySlots") || "").split(",").map((slot) => slot.trim()).filter(Boolean); const response = await fetch("/api/admin/availability", { method: "PUT", headers: { "Content-Type": "application/json", ...authHeader() }, body: JSON.stringify({ date, slots }) }); availabilityStatus.textContent = response.ok ? "Date availability saved." : "Could not save availability."; });
-addPackageBtn.onclick = () => addPackageEditor();
-catalogForm.addEventListener("submit", async (event) => { event.preventDefault(); const items = [...inventoryEditor.children].map((row) => ({ key: row.dataset.key, description: row.querySelector('[name="description"]').value, inventory: Number(row.querySelector('[name="inventory"]').value || 0), price: Number(row.querySelector('[name="price"]').value || 0) })); const packages = [...packageEditor.children].map((editor) => ({ id: editor.dataset.id, name: editor.querySelector('[name="packageName"]').value, description: editor.querySelector('[name="packageDescription"]').value, price: Number(editor.querySelector('[name="packagePrice"]').value || 0), items: Object.fromEntries(keys.map((key) => [key, Number(editor.querySelector(`[name="package-${key}"]`).value || 0)])) })); const response = await fetch("/api/admin/catalog", { method: "PUT", headers: { "Content-Type": "application/json", ...authHeader() }, body: JSON.stringify({ items, packages }) }); if (response.ok) { renderCatalogEditor(await response.json()); catalogStatus.textContent = "Inventory and packages saved."; } else catalogStatus.textContent = "Could not save catalog."; });
-closePreviewBtn.onclick = closePreview; previewModal.onclick = (event) => { if (event.target === previewModal) closePreview(); };
-if (getCredentials()) showPanel(); else showLogin();
+
+function getCredentials() {
+  try {
+    const raw = sessionStorage.getItem(AUTH_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw);
+    return parsed.username && parsed.password ? parsed : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function setCredentials(username, password) {
+  sessionStorage.setItem(AUTH_KEY, JSON.stringify({ username, password }));
+}
+
+function clearCredentials() {
+  sessionStorage.removeItem(AUTH_KEY);
+}
+
+function authHeader() {
+  const credentials = getCredentials();
+  if (!credentials) {
+    return {};
+  }
+  const token = btoa(`${credentials.username}:${credentials.password}`);
+  return { Authorization: `Basic ${token}` };
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+async function verifyCredentials(username, password) {
+  const token = btoa(`${username}:${password}`);
+  const response = await fetch("/api/admin/ping", {
+    headers: { Authorization: `Basic ${token}` },
+  });
+  return response.ok;
+}
+
+function showPanel() {
+  loginSection.hidden = true;
+  panelSection.hidden = false;
+  loadAdminGallery();
+  loadSettings();
+  loadAvailability();
+  loadCatalog();
+  loadAdminUsername();
+  loadBookings();
+}
+
+function showLogin() {
+  loginSection.hidden = false;
+  panelSection.hidden = true;
+}
+
+async function loadAdminGallery() {
+  try {
+    const response = await fetch("/api/gallery");
+    const images = response.ok ? await response.json() : [];
+    renderAdminGallery(images);
+  } catch (error) {
+    adminGalleryGrid.innerHTML = "<p>Could not reach the server. Is it running?</p>";
+  }
+}
+
+function renderAdminGallery(images) {
+  adminGalleryGrid.innerHTML = "";
+
+  if (images.length === 0) {
+    adminGalleryGrid.innerHTML = "<p>No uploaded images yet. Add one above.</p>";
+    return;
+  }
+
+  images.forEach((image) => {
+    const figure = document.createElement("figure");
+
+    const img = document.createElement("img");
+    img.src = image.url;
+    img.alt = image.caption || "Uploaded gallery image";
+    img.addEventListener("click", () => openPreview(image));
+    figure.appendChild(img);
+
+    const figcaption = document.createElement("figcaption");
+    figcaption.textContent = image.caption || "(no caption)";
+    figure.appendChild(figcaption);
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.addEventListener("click", () => deleteImage(image.id));
+    figure.appendChild(deleteBtn);
+
+    const previewBtn = document.createElement("button");
+    previewBtn.type = "button";
+    previewBtn.className = "preview-btn";
+    previewBtn.textContent = "Preview";
+    previewBtn.addEventListener("click", () => openPreview(image));
+    figure.appendChild(previewBtn);
+
+    adminGalleryGrid.appendChild(figure);
+  });
+}
+
+function openPreview(image) {
+  previewImage.src = image.url;
+  previewImage.alt = image.caption || "Uploaded gallery image";
+  previewTitle.textContent = image.caption || "Image Preview";
+  previewCaption.textContent = image.caption || "";
+  previewModal.hidden = false;
+  closePreviewBtn.focus();
+}
+
+function closePreview() {
+  previewModal.hidden = true;
+  previewImage.src = "";
+}
+
+async function loadSettings() {
+  try {
+    const response = await fetch("/api/admin/settings", { headers: authHeader() });
+    if (!response.ok) {
+      throw new Error("Could not load settings");
+    }
+    const settings = await response.json();
+    Object.entries(settings).forEach(([name, value]) => {
+      const field = settingsForm.elements.namedItem(name);
+      if (field) {
+        field.value = value;
+      }
+    });
+  } catch (error) {
+    settingsStatus.textContent = "Could not load business settings.";
+  }
+}
+
+async function loadAvailability() {
+  try {
+    const response = await fetch("/api/admin/availability", { headers: authHeader() });
+    if (!response.ok) {
+      throw new Error("Could not load availability");
+    }
+    availabilityOverrides = await response.json();
+  } catch (error) {
+    availabilityStatus.textContent = "Could not load drop-off availability.";
+  }
+}
+
+availabilityForm.elements.availabilityDate.addEventListener("change", (event) => {
+  const slots = availabilityOverrides[event.target.value] || [];
+  availabilityForm.elements.availabilitySlots.value = slots.join(", ");
+});
+
+function renderCatalogEditor(catalog) {
+  inventoryEditor.innerHTML = "";
+  catalog.items.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "inventory-row";
+    row.dataset.key = item.key;
+    row.innerHTML = `<strong></strong><label class="inventory-description-field">Description<input type="text" name="description" required></label><label>Inventory<input type="number" min="0" name="inventory" required></label><label>Price<input type="number" min="0" step="0.01" name="price" required></label>`;
+    row.querySelector("strong").textContent = item.name;
+    row.querySelector('[name="description"]').value = item.description || "";
+    row.querySelector('[name="inventory"]').value = item.inventory;
+    row.querySelector('[name="price"]').value = item.price;
+    inventoryEditor.appendChild(row);
+  });
+
+  packageEditor.innerHTML = "";
+  catalog.packages.forEach((pkg) => addPackageEditor(pkg));
+}
+
+function addPackageEditor(pkg = {}) {
+  if (packageEditor.children.length >= 4) {
+    catalogStatus.textContent = "A maximum of four packages can be displayed.";
+    return;
+  }
+  const editor = document.createElement("fieldset");
+  editor.className = "package-editor-row";
+  editor.innerHTML = `<legend>Package ${packageEditor.children.length + 1}</legend><button type="button" class="remove-package-btn">Remove</button><label>Name<input type="text" name="packageName" required></label><label>Description<input type="text" name="packageDescription"></label><label>Package Price<input type="number" name="packagePrice" min="0" step="0.01" required></label><div class="package-quantities"></div>`;
+  editor.querySelector('[name="packageName"]').value = pkg.name || "";
+  editor.querySelector('[name="packageDescription"]').value = pkg.description || "";
+  editor.querySelector('[name="packagePrice"]').value = pkg.price || 0;
+  editor.dataset.id = pkg.id || "";
+  const quantities = editor.querySelector(".package-quantities");
+  ["tables", "chairs", "canopies", "fans", "iceChests"].forEach((key) => {
+    const label = document.createElement("label");
+    label.textContent = key;
+    label.innerHTML += `<input type="number" min="0" name="package-${key}" value="${pkg.items?.[key] || 0}">`;
+    quantities.appendChild(label);
+  });
+  editor.querySelector(".remove-package-btn").addEventListener("click", () => editor.remove());
+  packageEditor.appendChild(editor);
+}
+
+async function loadCatalog() {
+  try {
+    const response = await fetch("/api/admin/catalog", { headers: authHeader() });
+    if (!response.ok) throw new Error("Could not load catalog");
+    renderCatalogEditor(await response.json());
+  } catch (error) {
+    catalogStatus.textContent = "Could not load inventory and packages.";
+  }
+}
+
+async function loadAdminUsername() {
+  const response = await fetch("/api/admin/auth", { headers: authHeader() });
+  if (response.ok) {
+    const data = await response.json();
+    authForm.elements.username.value = data.username;
+  }
+}
+
+function notificationBadge(result) {
+  if (!result) {
+    return "unknown";
+  }
+  return result.sent ? "sent" : `not sent (${result.detail || "skipped"})`;
+}
+
+async function loadBookings() {
+  try {
+    const response = await fetch("/api/admin/bookings", { headers: authHeader() });
+    if (!response.ok) {
+      throw new Error("Could not load bookings");
+    }
+    const bookings = await response.json();
+    bookingsList.innerHTML = "";
+
+    if (bookings.length === 0) {
+      bookingsList.innerHTML = "<p>No booking requests yet.</p>";
+      return;
+    }
+
+    [...bookings].reverse().forEach((booking) => {
+      const row = document.createElement("div");
+      row.className = "booking-row";
+      row.innerHTML = `
+        <strong>${booking.fullName || "(no name)"}</strong> - ${booking.selectedDate || ""} ${booking.selectedTime || ""}<br>
+        Email: ${booking.email || "(none)"} | Total: $${Number(booking.quoteTotal || 0).toFixed(2)}<br>
+        Notification email: ${notificationBadge(booking.notifications?.email)} | SMS: ${notificationBadge(booking.notifications?.sms)}
+      `;
+      bookingsList.appendChild(row);
+    });
+  } catch (error) {
+    bookingsList.innerHTML = "<p>Could not load booking requests.</p>";
+  }
+}
+
+refreshBookingsBtn.addEventListener("click", loadBookings);
+
+authForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const formData = new FormData(authForm);
+  const username = String(formData.get("username") || "").trim();
+  const password = String(formData.get("password") || "");
+  const confirmPassword = String(formData.get("confirmPassword") || "");
+
+  if (password !== confirmPassword) {
+    authStatus.textContent = "The passwords do not match.";
+    return;
+  }
+
+  authStatus.textContent = "Saving...";
+  try {
+    const response = await fetch("/api/admin/auth", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...authHeader() },
+      body: JSON.stringify({ username, password }),
+    });
+    const body = await response.json();
+    if (!response.ok) {
+      throw new Error(body.error || "Could not change credentials.");
+    }
+    sessionStorage.removeItem(AUTH_KEY);
+    authForm.reset();
+    showLogin();
+    loginStatus.textContent = "Credentials changed. Log in with your new username and password.";
+  } catch (error) {
+    authStatus.textContent = error.message;
+  }
+});
+
+addPackageBtn.addEventListener("click", () => addPackageEditor());
+
+catalogForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  catalogStatus.textContent = "Saving...";
+  const items = [...inventoryEditor.children].map((row) => ({
+    key: row.dataset.key,
+    description: row.querySelector('[name="description"]').value,
+    inventory: Number(row.querySelector('[name="inventory"]').value || 0),
+    price: Number(row.querySelector('[name="price"]').value || 0),
+  }));
+  const packages = [...packageEditor.children].map((editor) => {
+    const items = {};
+    ["tables", "chairs", "canopies", "fans", "iceChests"].forEach((key) => {
+      items[key] = Number(editor.querySelector(`[name="package-${key}"]`).value || 0);
+    });
+    return {
+      id: editor.dataset.id,
+      name: editor.querySelector('[name="packageName"]').value,
+      description: editor.querySelector('[name="packageDescription"]').value,
+      price: Number(editor.querySelector('[name="packagePrice"]').value || 0),
+      items,
+    };
+  });
+  try {
+    const response = await fetch("/api/admin/catalog", { method: "PUT", headers: { "Content-Type": "application/json", ...authHeader() }, body: JSON.stringify({ items, packages }) });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error || "Save failed");
+    renderCatalogEditor(body);
+    catalogStatus.textContent = `Saved ${body.packages.length} package${body.packages.length === 1 ? "" : "s"}.`;
+  } catch (error) {
+    catalogStatus.textContent = error.message || "Could not save catalog.";
+  }
+});
+
+settingsForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  settingsStatus.textContent = "Saving...";
+  const settings = Object.fromEntries(new FormData(settingsForm).entries());
+
+  try {
+    const response = await fetch("/api/admin/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...authHeader() },
+      body: JSON.stringify(settings),
+    });
+    if (!response.ok) {
+      throw new Error("Save failed");
+    }
+    settingsStatus.textContent = "Business settings saved.";
+  } catch (error) {
+    settingsStatus.textContent = "Could not save business settings.";
+  }
+});
+
+availabilityForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  availabilityStatus.textContent = "Saving...";
+  const formData = new FormData(availabilityForm);
+  const date = String(formData.get("availabilityDate") || "");
+  const slots = String(formData.get("availabilitySlots") || "")
+    .split(",")
+    .map((slot) => slot.trim())
+    .filter(Boolean);
+
+  try {
+    const response = await fetch("/api/admin/availability", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...authHeader() },
+      body: JSON.stringify({ date, slots }),
+    });
+    const body = await response.json();
+    if (!response.ok) {
+      throw new Error(body.error || "Save failed");
+    }
+    availabilityStatus.textContent = body.slots.length
+      ? `Saved ${body.slots.length} time slots for ${date}.`
+      : `Default time slots restored for ${date}.`;
+  } catch (error) {
+    availabilityStatus.textContent = error.message || "Could not save date availability.";
+  }
+});
+
+closePreviewBtn.addEventListener("click", closePreview);
+previewModal.addEventListener("click", (event) => {
+  if (event.target === previewModal) {
+    closePreview();
+  }
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !previewModal.hidden) {
+    closePreview();
+  }
+});
+
+async function deleteImage(id) {
+  try {
+    const response = await fetch(`/api/gallery/${id}`, {
+      method: "DELETE",
+      headers: authHeader(),
+    });
+    if (!response.ok) {
+      throw new Error("Delete failed");
+    }
+    loadAdminGallery();
+  } catch (error) {
+    uploadStatus.textContent = "Could not delete that image.";
+  }
+}
+
+loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const formData = new FormData(loginForm);
+  const username = String(formData.get("username") || "").trim();
+  const password = String(formData.get("password") || "");
+
+  loginStatus.textContent = "Checking credentials...";
+
+  try {
+    const valid = await verifyCredentials(username, password);
+    if (!valid) {
+      loginStatus.textContent = "Incorrect username or password.";
+      return;
+    }
+    setCredentials(username, password);
+    loginStatus.textContent = "";
+    loginForm.reset();
+    showPanel();
+  } catch (error) {
+    loginStatus.textContent = "Could not reach the server. Is it running?";
+  }
+});
+
+logoutBtn.addEventListener("click", () => {
+  clearCredentials();
+  showLogin();
+});
+
+uploadForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const formData = new FormData(uploadForm);
+  const file = formData.get("image");
+  const caption = String(formData.get("caption") || "").trim();
+
+  if (!file || file.size === 0) {
+    uploadStatus.textContent = "Please choose an image file.";
+    return;
+  }
+
+  uploadStatus.textContent = "Uploading...";
+
+  try {
+    const dataUrl = await fileToDataUrl(file);
+    const response = await fetch("/api/gallery", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeader() },
+      body: JSON.stringify({ image: dataUrl, caption }),
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.error || "Upload failed");
+    }
+
+    uploadForm.reset();
+    uploadStatus.textContent = "Image added to gallery.";
+    loadAdminGallery();
+  } catch (error) {
+    uploadStatus.textContent = error.message || "Could not upload that image.";
+  }
+});
+
+if (getCredentials()) {
+  showPanel();
+} else {
+  showLogin();
+}
