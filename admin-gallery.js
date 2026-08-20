@@ -1,5 +1,11 @@
 const AUTH_KEY = "yourr_party_rentals_gallery_admin_auth";
 
+const APP_CONFIG = window.YPR_CONFIG || {};
+const API_BASE_URL = (APP_CONFIG.apiBaseUrl || "").replace(/\/$/, "");
+function apiUrl(path) {
+  return `${API_BASE_URL}${path}`;
+}
+
 const loginSection = document.getElementById("admin-login");
 const panelSection = document.getElementById("admin-panel");
 const loginForm = document.getElementById("admin-login-form");
@@ -70,7 +76,7 @@ function fileToDataUrl(file) {
 
 async function verifyCredentials(username, password) {
   const token = btoa(`${username}:${password}`);
-  const response = await fetch("/api/admin/ping", {
+  const response = await fetch(apiUrl("/api/admin/ping"), {
     headers: { Authorization: `Basic ${token}` },
   });
   return response.ok;
@@ -94,7 +100,7 @@ function showLogin() {
 
 async function loadAdminGallery() {
   try {
-    const response = await fetch("/api/gallery");
+    const response = await fetch(apiUrl("/api/gallery"));
     const images = response.ok ? await response.json() : [];
     renderAdminGallery(images);
   } catch (error) {
@@ -156,7 +162,7 @@ function closePreview() {
 
 async function loadSettings() {
   try {
-    const response = await fetch("/api/admin/settings", { headers: authHeader() });
+    const response = await fetch(apiUrl("/api/admin/settings"), { headers: authHeader() });
     if (!response.ok) {
       throw new Error("Could not load settings");
     }
@@ -174,7 +180,7 @@ async function loadSettings() {
 
 async function loadAvailability() {
   try {
-    const response = await fetch("/api/admin/availability", { headers: authHeader() });
+    const response = await fetch(apiUrl("/api/admin/availability"), { headers: authHeader() });
     if (!response.ok) {
       throw new Error("Could not load availability");
     }
@@ -232,7 +238,7 @@ function addPackageEditor(pkg = {}) {
 
 async function loadCatalog() {
   try {
-    const response = await fetch("/api/admin/catalog", { headers: authHeader() });
+    const response = await fetch(apiUrl("/api/admin/catalog"), { headers: authHeader() });
     if (!response.ok) throw new Error("Could not load catalog");
     renderCatalogEditor(await response.json());
   } catch (error) {
@@ -241,7 +247,7 @@ async function loadCatalog() {
 }
 
 async function loadAdminUsername() {
-  const response = await fetch("/api/admin/auth", { headers: authHeader() });
+  const response = await fetch(apiUrl("/api/admin/auth"), { headers: authHeader() });
   if (response.ok) {
     const data = await response.json();
     authForm.elements.username.value = data.username;
@@ -257,7 +263,7 @@ function notificationBadge(result) {
 
 async function loadBookings() {
   try {
-    const response = await fetch("/api/admin/bookings", { headers: authHeader() });
+    const response = await fetch(apiUrl("/api/admin/bookings"), { headers: authHeader() });
     if (!response.ok) {
       throw new Error("Could not load bookings");
     }
@@ -300,7 +306,7 @@ authForm.addEventListener("submit", async (event) => {
 
   authStatus.textContent = "Saving...";
   try {
-    const response = await fetch("/api/admin/auth", {
+    const response = await fetch(apiUrl("/api/admin/auth"), {
       method: "PUT",
       headers: { "Content-Type": "application/json", ...authHeader() },
       body: JSON.stringify({ username, password }),
@@ -343,7 +349,7 @@ catalogForm.addEventListener("submit", async (event) => {
     };
   });
   try {
-    const response = await fetch("/api/admin/catalog", { method: "PUT", headers: { "Content-Type": "application/json", ...authHeader() }, body: JSON.stringify({ items, packages }) });
+    const response = await fetch(apiUrl("/api/admin/catalog"), { method: "PUT", headers: { "Content-Type": "application/json", ...authHeader() }, body: JSON.stringify({ items, packages }) });
     const body = await response.json();
     if (!response.ok) throw new Error(body.error || "Save failed");
     renderCatalogEditor(body);
@@ -359,7 +365,7 @@ settingsForm.addEventListener("submit", async (event) => {
   const settings = Object.fromEntries(new FormData(settingsForm).entries());
 
   try {
-    const response = await fetch("/api/admin/settings", {
+    const response = await fetch(apiUrl("/api/admin/settings"), {
       method: "PUT",
       headers: { "Content-Type": "application/json", ...authHeader() },
       body: JSON.stringify(settings),
@@ -384,7 +390,7 @@ availabilityForm.addEventListener("submit", async (event) => {
     .filter(Boolean);
 
   try {
-    const response = await fetch("/api/admin/availability", {
+    const response = await fetch(apiUrl("/api/admin/availability"), {
       method: "PUT",
       headers: { "Content-Type": "application/json", ...authHeader() },
       body: JSON.stringify({ date, slots }),
@@ -415,7 +421,7 @@ document.addEventListener("keydown", (event) => {
 
 async function deleteImage(id) {
   try {
-    const response = await fetch(`/api/gallery/${id}`, {
+    const response = await fetch(apiUrl(`/api/gallery/${id}`), {
       method: "DELETE",
       headers: authHeader(),
     });
@@ -471,7 +477,7 @@ uploadForm.addEventListener("submit", async (event) => {
 
   try {
     const dataUrl = await fileToDataUrl(file);
-    const response = await fetch("/api/gallery", {
+    const response = await fetch(apiUrl("/api/gallery"), {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeader() },
       body: JSON.stringify({ image: dataUrl, caption }),
