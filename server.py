@@ -5,6 +5,8 @@ Env vars:
   GALLERY_ADMIN_USERNAME (default: admin)
   GALLERY_ADMIN_PASSWORD (default: yourr-admin)
   PORT (default: 3002)
+    DATA_DIR (default: /var/data/data on Render when available; otherwise ./data)
+    UPLOADS_DIR (default: DATA_DIR/uploads/gallery)
   CORS_ALLOWED_ORIGIN (default: *; set to your frontend's exact origin in production)
 
 Optional booking notification env vars (leave unset to skip real sending):
@@ -29,7 +31,9 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlparse
 
 ROOT = Path(__file__).resolve().parent
-DATA_DIR = Path(os.getenv("DATA_DIR", str(ROOT / "data")))
+PERSISTENT_ROOT = Path("/var/data")
+DEFAULT_DATA_DIR = PERSISTENT_ROOT / "data" if PERSISTENT_ROOT.exists() else ROOT / "data"
+DATA_DIR = Path(os.getenv("DATA_DIR", str(DEFAULT_DATA_DIR)))
 UPLOADS_DIR = Path(os.getenv("UPLOADS_DIR", str(DATA_DIR / "uploads" / "gallery")))
 GALLERY_PATH = DATA_DIR / "gallery.json"
 GALLERY_SEEDED_PATH = DATA_DIR / ".gallery-seeded"
@@ -109,7 +113,7 @@ DEFAULT_CATALOG = {
 
 
 def ensure_data_files():
-    DATA_DIR.mkdir(exist_ok=True)
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
     if not GALLERY_PATH.exists():
         write_json(GALLERY_PATH, [])

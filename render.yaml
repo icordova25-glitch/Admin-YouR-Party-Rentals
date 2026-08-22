@@ -2,7 +2,7 @@ services:
   - type: web
     name: your-party-rentals-api
     runtime: python
-    plan: free
+    plan: starter
     buildCommand: python3 -m py_compile server.py
     startCommand: python3 server.py
     healthCheckPath: /api/health
